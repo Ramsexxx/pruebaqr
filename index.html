@@ -14,12 +14,12 @@
 
     <model-viewer 
         src="scene.gltf" 
-        ios-src="modelo.usdz" 
         ar 
-        ar-modes="webxr scene-viewer quick-look" 
-        camera-controls 
-        autoplay 
-        shadow-intensity="1">
+    ar-scale="auto" 
+    ar-placement="floor"
+    camera-controls 
+    touch-action="pan-y">
+        
         
         <button slot="ar-button" style="background-color: white; border-radius: 8px; border: none; position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); padding: 15px 25px; font-size: 18px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             👋 Ver en mi espacio
