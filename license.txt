@@ -1,0 +1,11 @@
+Model Information:
+* title:	Transistor: redbubble
+* source:	https://sketchfab.com/3d-models/transistor-redbubble-92fc483b18cc4709ba8a8ea7c7213986
+* author:	Kai Tsuki (https://sketchfab.com/righttsuki)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Transistor: redbubble" (https://sketchfab.com/3d-models/transistor-redbubble-92fc483b18cc4709ba8a8ea7c7213986) by Kai Tsuki (https://sketchfab.com/righttsuki) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
