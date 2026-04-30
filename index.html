@@ -2,9 +2,19 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi Tarjeta AR</title>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"></script>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+        "mindar-image-three": "https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-three.prod.js"
+      }
+    }
+  </script>
+
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #000; }
@@ -14,13 +24,16 @@
       background: #000; color: #fff;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      font-family: sans-serif; gap: 12px;
+      font-family: sans-serif; gap: 14px;
       z-index: 99;
+      transition: opacity 0.5s;
     }
-    #loading p { font-size: 16px; opacity: 0.7; }
+    #loading p  { font-size: 15px; opacity: 0.7; margin: 0; }
+    #loading h2 { font-size: 20px; font-weight: 600; margin: 0; }
+
     .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid rgba(255,255,255,0.2);
+      width: 42px; height: 42px;
+      border: 3px solid rgba(255,255,255,0.15);
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
@@ -28,64 +41,67 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     #hint {
-      position: fixed; bottom: 30px; left: 0; right: 0;
-      text-align: center;
-      font-family: sans-serif; font-size: 14px;
-      color: rgba(255,255,255,0.8);
-      background: rgba(0,0,0,0.45);
-      padding: 10px 20px;
-      display: none;
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+      font-family: sans-serif; font-size: 14px; color: #fff;
+      background: rgba(0,0,0,0.55);
+      padding: 10px 20px; border-radius: 20px;
+      display: none; white-space: nowrap;
       z-index: 10;
     }
+
+    #container { width: 100vw; height: 100vh; }
   </style>
 </head>
 <body>
 
   <div id="loading">
     <div class="spinner"></div>
+    <h2>Mi Tarjeta AR</h2>
     <p>Iniciando cámara...</p>
   </div>
 
-  <div id="hint">📸 Apunta la cámara a la imagen de tu tarjeta</div>
+  <div id="hint">📸 Apunta la cámara a la tarjeta</div>
 
-  <script>
-    const { MindARThree } = window.MINDAR.IMAGE;
+  <div id="container"></div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+    import { MindARThree } from 'mindar-image-three';
 
     const mindarThree = new MindARThree({
-      container: document.body,
+      container: document.querySelector('#container'),
 
-      // ── IMAGEN TARGET ──────────────────────────────────────────────
-      // Archivo .mind de ejemplo oficial de MindAR.
-      // Cuando tengas tu tarjeta, reemplaza esta URL por 'targets.mind'
-      // y sube tu archivo compilado al repo.
-      imageTargetSrc: 'https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/examples/card-example/card.mind',
-      // ───────────────────────────────────────────────────────────────
-
-      maxTrack: 1,
+      // ── TARGET IMAGE ────────────────────────────────────────────────
+      // Ejemplo oficial de MindAR. Imagen para probar:
+      // https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png
+      //
+      // Cuando tengas tu tarjeta lista:
+      // 1. Compila en https://hiukim.github.io/mind-ar-js-doc/tools/compile
+      // 2. Sube el targets.mind al repo
+      // 3. Cambia esta línea por: imageTargetSrc: 'targets.mind'
+      imageTargetSrc: 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind',
+      // ────────────────────────────────────────────────────────────────
     });
 
     const { renderer, scene, camera } = mindarThree;
-
-    // Anchor 0 = primera (y única) imagen del .mind
     const anchor = mindarThree.addAnchor(0);
 
     // ── MODELO 3D ────────────────────────────────────────────────────
-    // Usa tu scene.glb que ya está en el repo
-    const loader = new THREE.GLTFLoader();
+    const loader = new GLTFLoader();
     loader.load(
       'scene.glb',
       (gltf) => {
         const model = gltf.scene;
 
-        // Ajusta escala — empieza con 0.08 y sube/baja según necesites
+        // Ajusta escala según el tamaño de tu modelo
+        // 1.0 = cubre toda la tarjeta aprox. Sube o baja este valor
         model.scale.set(0.08, 0.08, 0.08);
-
-        // Centrado sobre la tarjeta
-        model.position.set(0, 0, 0);
+        model.position.set(0, 0, 0.05);
 
         anchor.group.add(model);
 
-        // Animaciones en loop (si el .glb las trae)
+        // Reproduce todas las animaciones del .glb en loop
         const mixer = new THREE.AnimationMixer(model);
         gltf.animations.forEach((clip) => {
           mixer.clipAction(clip).play();
@@ -98,15 +114,21 @@
         });
       },
       undefined,
-      (err) => console.error('Error cargando modelo:', err)
+      (err) => {
+        console.error('Error al cargar el modelo:', err);
+      }
     );
     // ─────────────────────────────────────────────────────────────────
 
-    // Arranca MindAR
+    // Arrancar MindAR
     mindarThree.start().then(() => {
       document.getElementById('loading').style.display = 'none';
       document.getElementById('hint').style.display = 'block';
+    }).catch((err) => {
+      console.error('Error al iniciar MindAR:', err);
+      document.querySelector('#loading p').textContent = 'Error: ' + err.message;
     });
+
   </script>
 
 </body>
