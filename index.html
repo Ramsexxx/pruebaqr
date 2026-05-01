@@ -26,11 +26,9 @@
       align-items: center; justify-content: center;
       font-family: sans-serif; gap: 14px;
       z-index: 99;
-      transition: opacity 0.5s;
     }
     #loading p  { font-size: 15px; opacity: 0.7; margin: 0; }
     #loading h2 { font-size: 20px; font-weight: 600; margin: 0; }
-
     .spinner {
       width: 42px; height: 42px;
       border: 3px solid rgba(255,255,255,0.15);
@@ -49,6 +47,17 @@
       z-index: 10;
     }
 
+    /* Controles de escala para calibrar en vivo */
+    #controls {
+      position: fixed; top: 16px; right: 16px;
+      display: none;
+      flex-direction: column; gap: 8px;
+      z-index: 20; font-family: sans-serif;
+    }
+    #controls label { color: #fff; font-size: 12px; }
+    #controls input  { width: 120px; }
+    #scaleVal { color: #0f0; font-weight: bold; }
+
     #container { width: 100vw; height: 100vh; }
   </style>
 </head>
@@ -62,6 +71,16 @@
 
   <div id="hint">📸 Apunta la cámara a la tarjeta</div>
 
+  <!-- Slider para ajustar escala en vivo sin tocar el código -->
+  <div id="controls">
+    <label>Escala: <span id="scaleVal">0.08</span></label>
+    <input type="range" id="scaleSlider" min="0.001" max="2" step="0.001" value="0.08">
+    <label>Rotar X: <span id="rotXVal">0°</span></label>
+    <input type="range" id="rotXSlider" min="-180" max="180" step="1" value="0">
+    <label>Rotar Z: <span id="rotZVal">0°</span></label>
+    <input type="range" id="rotZSlider" min="-180" max="180" step="1" value="0">
+  </div>
+
   <div id="container"></div>
 
   <script type="module">
@@ -71,61 +90,74 @@
 
     const mindarThree = new MindARThree({
       container: document.querySelector('#container'),
-
-      // ── TARGET IMAGE ────────────────────────────────────────────────
-      // Ejemplo oficial de MindAR. Imagen para probar:
-      // https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.png
-      //
-      // Cuando tengas tu tarjeta lista:
-      // 1. Compila en https://hiukim.github.io/mind-ar-js-doc/tools/compile
-      // 2. Sube el targets.mind al repo
-      // 3. Cambia esta línea por: imageTargetSrc: 'targets.mind'
       imageTargetSrc: 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind',
-      // ────────────────────────────────────────────────────────────────
     });
 
     const { renderer, scene, camera } = mindarThree;
     const anchor = mindarThree.addAnchor(0);
 
-    // ── MODELO 3D ────────────────────────────────────────────────────
+    // ── CUBO DE REFERENCIA (siempre visible al detectar la tarjeta) ──
+    // Si ves este cubo rojo → MindAR funciona bien, el problema es solo el .glb
+    const cubeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
+    const cube = new THREE.Mesh(cubeGeo, cubeMat);
+    cube.position.set(0, 0, 0.05);
+    anchor.group.add(cube);
+    // ────────────────────────────────────────────────────────────────
+
+    // ── MODELO REAL ──────────────────────────────────────────────────
+    let model = null;
     const loader = new GLTFLoader();
     loader.load(
-      'scene.glb',
+      'MimicruFest.glb',
       (gltf) => {
-        const model = gltf.scene;
-
-        // Ajusta escala según el tamaño de tu modelo
-        // 1.0 = cubre toda la tarjeta aprox. Sube o baja este valor
+        model = gltf.scene;
         model.scale.set(0.08, 0.08, 0.08);
         model.position.set(0, 0, 0.05);
-
         anchor.group.add(model);
 
-        // Reproduce todas las animaciones del .glb en loop
         const mixer = new THREE.AnimationMixer(model);
-        gltf.animations.forEach((clip) => {
-          mixer.clipAction(clip).play();
-        });
+        gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
 
         const clock = new THREE.Clock();
         renderer.setAnimationLoop(() => {
           mixer.update(clock.getDelta());
           renderer.render(scene, camera);
         });
+
+        // Mostrar controles una vez cargado el modelo
+        document.getElementById('controls').style.display = 'flex';
+
+        // Slider de escala
+        document.getElementById('scaleSlider').addEventListener('input', (e) => {
+          const v = parseFloat(e.target.value);
+          document.getElementById('scaleVal').textContent = v.toFixed(3);
+          model.scale.set(v, v, v);
+        });
+
+        // Slider rotación X
+        document.getElementById('rotXSlider').addEventListener('input', (e) => {
+          const deg = parseInt(e.target.value);
+          document.getElementById('rotXVal').textContent = deg + '°';
+          model.rotation.x = deg * Math.PI / 180;
+        });
+
+        // Slider rotación Z
+        document.getElementById('rotZSlider').addEventListener('input', (e) => {
+          const deg = parseInt(e.target.value);
+          document.getElementById('rotZVal').textContent = deg + '°';
+          model.rotation.z = deg * Math.PI / 180;
+        });
       },
       undefined,
-      (err) => {
-        console.error('Error al cargar el modelo:', err);
-      }
+      (err) => console.error('Error al cargar el modelo:', err)
     );
     // ─────────────────────────────────────────────────────────────────
 
-    // Arrancar MindAR
     mindarThree.start().then(() => {
       document.getElementById('loading').style.display = 'none';
       document.getElementById('hint').style.display = 'block';
     }).catch((err) => {
-      console.error('Error al iniciar MindAR:', err);
       document.querySelector('#loading p').textContent = 'Error: ' + err.message;
     });
 
