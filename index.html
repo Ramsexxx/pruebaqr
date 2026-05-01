@@ -47,16 +47,18 @@
       z-index: 10;
     }
 
-    /* Controles de escala para calibrar en vivo */
+    /* Sliders de ajuste */
     #controls {
       position: fixed; top: 16px; right: 16px;
       display: none;
-      flex-direction: column; gap: 8px;
+      flex-direction: column; gap: 6px;
       z-index: 20; font-family: sans-serif;
+      background: rgba(0,0,0,0.6);
+      padding: 10px 14px; border-radius: 12px;
     }
-    #controls label { color: #fff; font-size: 12px; }
-    #controls input  { width: 120px; }
-    #scaleVal { color: #0f0; font-weight: bold; }
+    #controls label { color: #fff; font-size: 12px; display: flex; justify-content: space-between; gap: 8px; }
+    #controls span  { color: #0f0; font-weight: bold; min-width: 44px; text-align: right; }
+    #controls input { width: 110px; }
 
     #container { width: 100vw; height: 100vh; }
   </style>
@@ -71,14 +73,13 @@
 
   <div id="hint">📸 Apunta la cámara a la tarjeta</div>
 
-  <!-- Slider para ajustar escala en vivo sin tocar el código -->
   <div id="controls">
-    <label>Escala: <span id="scaleVal">0.08</span></label>
-    <input type="range" id="scaleSlider" min="0.001" max="2" step="0.001" value="0.08">
-    <label>Rotar X: <span id="rotXVal">0°</span></label>
-    <input type="range" id="rotXSlider" min="-180" max="180" step="1" value="0">
-    <label>Rotar Z: <span id="rotZVal">0°</span></label>
-    <input type="range" id="rotZSlider" min="-180" max="180" step="1" value="0">
+    <label>Escala <span id="scaleVal">0.08</span><input type="range" id="scaleSlider" min="0.001" max="2" step="0.001" value="0.08"></label>
+    <label>Pos X  <span id="posXVal">0.00</span><input type="range" id="posXSlider" min="-1" max="1" step="0.01" value="0"></label>
+    <label>Pos Y  <span id="posYVal">0.00</span><input type="range" id="posYSlider" min="-1" max="1" step="0.01" value="0"></label>
+    <label>Pos Z  <span id="posZVal">0.05</span><input type="range" id="posZSlider" min="-1" max="1" step="0.01" value="0.05"></label>
+    <label>Rot X  <span id="rotXVal">0°</span><input type="range" id="rotXSlider" min="-180" max="180" step="1" value="0"></label>
+    <label>Rot Z  <span id="rotZVal">0°</span><input type="range" id="rotZSlider" min="-180" max="180" step="1" value="0"></label>
   </div>
 
   <div id="container"></div>
@@ -88,30 +89,23 @@
     import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
     import { MindARThree } from 'mindar-image-three';
 
+    // ── Anti-vibración ───────────────────────────────────────────────
     const mindarThree = new MindARThree({
       container: document.querySelector('#container'),
       imageTargetSrc: 'https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind',
+      filterMinCF: 0.001,
+      filterBeta: 1000,
     });
+    // ────────────────────────────────────────────────────────────────
 
     const { renderer, scene, camera } = mindarThree;
     const anchor = mindarThree.addAnchor(0);
 
-    // ── CUBO DE REFERENCIA (siempre visible al detectar la tarjeta) ──
-    // Si ves este cubo rojo → MindAR funciona bien, el problema es solo el .glb
-    const cubeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-    const cubeMat = new THREE.MeshBasicMaterial({ color: 0xff0000, wireframe: true });
-    const cube = new THREE.Mesh(cubeGeo, cubeMat);
-    cube.position.set(0, 0, 0.05);
-    anchor.group.add(cube);
-    // ────────────────────────────────────────────────────────────────
-
-    // ── MODELO REAL ──────────────────────────────────────────────────
-    let model = null;
     const loader = new GLTFLoader();
     loader.load(
       'MimicruFest.glb',
       (gltf) => {
-        model = gltf.scene;
+        const model = gltf.scene;
         model.scale.set(0.08, 0.08, 0.08);
         model.position.set(0, 0, 0.05);
         anchor.group.add(model);
@@ -125,24 +119,45 @@
           renderer.render(scene, camera);
         });
 
-        // Mostrar controles una vez cargado el modelo
+        // Mostrar controles
         document.getElementById('controls').style.display = 'flex';
 
-        // Slider de escala
+        // Escala
         document.getElementById('scaleSlider').addEventListener('input', (e) => {
           const v = parseFloat(e.target.value);
           document.getElementById('scaleVal').textContent = v.toFixed(3);
           model.scale.set(v, v, v);
         });
 
-        // Slider rotación X
+        // Posición X
+        document.getElementById('posXSlider').addEventListener('input', (e) => {
+          const v = parseFloat(e.target.value);
+          document.getElementById('posXVal').textContent = v.toFixed(2);
+          model.position.x = v;
+        });
+
+        // Posición Y
+        document.getElementById('posYSlider').addEventListener('input', (e) => {
+          const v = parseFloat(e.target.value);
+          document.getElementById('posYVal').textContent = v.toFixed(2);
+          model.position.y = v;
+        });
+
+        // Posición Z
+        document.getElementById('posZSlider').addEventListener('input', (e) => {
+          const v = parseFloat(e.target.value);
+          document.getElementById('posZVal').textContent = v.toFixed(2);
+          model.position.z = v;
+        });
+
+        // Rotación X
         document.getElementById('rotXSlider').addEventListener('input', (e) => {
           const deg = parseInt(e.target.value);
           document.getElementById('rotXVal').textContent = deg + '°';
           model.rotation.x = deg * Math.PI / 180;
         });
 
-        // Slider rotación Z
+        // Rotación Z
         document.getElementById('rotZSlider').addEventListener('input', (e) => {
           const deg = parseInt(e.target.value);
           document.getElementById('rotZVal').textContent = deg + '°';
@@ -152,7 +167,6 @@
       undefined,
       (err) => console.error('Error al cargar el modelo:', err)
     );
-    // ─────────────────────────────────────────────────────────────────
 
     mindarThree.start().then(() => {
       document.getElementById('loading').style.display = 'none';
